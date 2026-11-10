@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>會議時間調查</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #1f2933; --muted: #6b7280; --line: #e3e6ea;
+    --primary: #2563eb; --primary-ink: #ffffff; --danger: #dc2626;
+    --am: #d97706; --am-bg: #fff4e0; --pm: #4f46e5; --pm-bg: #eceafe;
+    --ok: #15803d; --ok-bg: #e7f6ec; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.5;
+  }
+  header.top { background: var(--card); border-bottom: 1px solid var(--line); }
+  header.top .inner { max-width: 1240px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+  header.top a { color: var(--text); text-decoration: none; font-weight: 700; font-size: 17px; }
+  main { max-width: 1240px; margin: 0 auto; padding: 20px 16px 60px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  label.field { display: block; margin-bottom: 14px; }
+  label.field > span { display: block; font-weight: 600; margin-bottom: 4px; }
+  input[type=text], input[type=date], textarea, select {
+    font: inherit; color: inherit; border: 1px solid #cfd4da; border-radius: 8px; padding: 8px 10px; background: #fff; width: 100%;
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > * { flex: 1 1 200px; }
+  button {
+    font: inherit; border: 1px solid #cfd4da; background: #fff; color: var(--text);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  button:hover { background: #f1f3f5; }
+  button.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.danger { color: var(--danger); border-color: #f3c4c4; }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .banner { border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
+  .banner.warn { background: #fff7e6; border: 1px solid #f5d69a; }
+  .banner.ok { background: var(--ok-bg); border: 1px solid #b7e2c4; }
+  .banner.err { background: #fdecec; border: 1px solid #f3c4c4; }
+  .linkbox { display: flex; gap: 8px; margin: 6px 0 14px; }
+  .linkbox input { flex: 1; font-size: 14px; background: #f8f9fa; }
+  .purpose { white-space: pre-wrap; background: #f8f9fa; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tabs button { border: none; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 10px 14px; font-weight: 600; color: var(--muted); }
+  .tabs button.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 6px 0 12px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+  /* 日曆 */
+  .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .cal .wk { text-align: center; font-weight: 600; font-size: 13px; color: var(--muted); padding: 4px 0; }
+  .day { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-height: 120px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .day.off { background: #f1f2f4; border-style: dashed; min-height: 0; }
+  .day.off .dhead { color: #b0b5bc; }
+  .dhead { font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; align-items: baseline; }
+  .dhead .wd { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .toggle { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: 13px; cursor: pointer; user-select: none; }
+  .toggle input { margin: 0; }
+  .toggle.am.on { background: var(--am-bg); border-color: var(--am); color: #8a4b00; font-weight: 600; }
+  .toggle.pm.on { background: var(--pm-bg); border-color: var(--pm); color: #3730a3; font-weight: 600; }
+  .range { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; font-size: 13px; }
+  .range select { width: auto; padding: 3px 2px; font-size: 13px; border-radius: 6px; }
+  .range .x { border: none; background: none; color: var(--muted); padding: 2px 4px; font-size: 14px; }
+  .range.bad select { border-color: var(--danger); }
+  .tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 10px; font-weight: 600; }
+  .tag.am { background: var(--am-bg); color: #8a4b00; }
+  .tag.pm { background: var(--pm-bg); color: #3730a3; }
+  .addrange { font-size: 12px; padding: 3px 6px; color: var(--primary); border-style: dashed; }
+
+  /* 結果 */
+  .res-period { border-radius: 6px; padding: 5px 6px; font-size: 12.5px; }
+  .res-period .ph { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 2px; }
+  .res-period.am { border-left: 3px solid var(--am); }
+  .res-period.pm { border-left: 3px solid var(--pm); }
+  .res-period ul { margin: 0; padding: 0; list-style: none; }
+  .res-period li { overflow-wrap: anywhere; }
+  .res-period li .t { color: var(--muted); }
+  .best { counter-reset: b; margin: 0; padding: 0; list-style: none; }
+  .best li { display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .best li .when { font-weight: 700; min-width: 170px; }
+  .best li .cnt { color: var(--ok); font-weight: 700; min-width: 60px; }
+  .people { display: flex; flex-wrap: wrap; gap: 8px; }
+  .person { border: 1px solid var(--line); border-radius: 20px; padding: 4px 6px 4px 12px; display: flex; gap: 6px; align-items: center; font-size: 14px; }
+  .person button { padding: 1px 8px; font-size: 12px; }
+  .tablewrap { overflow-x: auto; }
+  table.matrix { border-collapse: collapse; font-size: 13px; }
+  table.matrix th, table.matrix td { border: 1px solid var(--line); padding: 4px 6px; text-align: center; white-space: nowrap; }
+  table.matrix th.name, table.matrix td.name { text-align: left; position: sticky; left: 0; background: #fff; }
+  table.matrix td.y { background: var(--ok-bg); color: var(--ok); font-weight: 700; }
+  table.matrix td.p { background: #fff7e6; color: #8a4b00; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+  .sticky-actions { position: sticky; bottom: 0; background: #fff; padding: 12px 20px; border-top: 1px solid var(--line); margin: 16px -20px -20px; border-radius: 0 0 var(--radius) var(--radius); z-index: 5; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #cbd2d9; border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1f2933; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px; z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .mylist a { color: var(--primary); }
+  .mylist li { margin-bottom: 4px; }
+
+  /* 窄螢幕：日曆改成清單 */
+  @media (max-width: 820px) {
+    .cal { grid-template-columns: 1fr; }
+    .cal .wk, .day.off { display: none; }
+    .day { min-height: 0; }
+    .dhead { font-size: 15px; }
+    .toggles { display: flex; gap: 6px; }
+    .toggles .toggle { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<header class="top"><div class="inner"><a href="./">📅 會議時間調查</a></div></header>
+<main id="app"><p class="muted"><span class="spinner"></span> 載入中…</p></main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   設定：把 Google Apps Script 部署後得到的「網頁應用程式網址」貼在這裡
+   留空 = 示範模式（資料只存在你自己的瀏覽器，方便先試用）
+   ============================================================ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbwzYrhUnC6RMBEGXOL5k7kiegTKAoR-kZwlphj8B2i2N3q3j3WIXP1VRpF0bS-rzybG/exec';
+
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+const NOON = '12:00';
+const TIME_OPTIONS = (() => { const a = []; for (let h = 7; h <= 22; h++) { a.push(pad(h) + ':00'); if (h < 22) a.push(pad(h) + ':30'); } return a; })();
+const app = document.getElementById('app');
+let state = { meeting: null, responses: [], isAdmin: false, key: '', fill: {}, tab: 'fill', resultView: 'cal' };
+
+/* ---------- 小工具 ---------- */
+function pad(n) { return String(n).padStart(2, '0'); }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function parseD(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function fmtD(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function labelD(s) { const d = parseD(s); return (d.getMonth() + 1) + '/' + d.getDate() + '（' + WEEKDAYS[d.getDay()] + '）'; }
+function isAllowed(s, m) { const wd = parseD(s).getDay(); return s >= m.startDate && s <= m.endDate && !(m.weekdaysOnly && (wd === 0 || wd === 6)); }
+function allowedDates(m) { const out = []; for (let d = parseD(m.startDate); fmtD(d) <= m.endDate; d = addDays(d, 1)) if (isAllowed(fmtD(d), m)) out.push(fmtD(d)); return out; }
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
+function baseUrl() { return location.origin + location.pathname; }
+async function copy(text) { try { await navigator.clipboard.writeText(text); toast('已複製連結'); } catch (e) { prompt('請手動複製：', text); } }
+
+/* 將某人某天的資料拆成「上午」「下午」兩段顯示 */
+function splitPeriods(slot) {
+  const res = { am: null, pm: null };
+  if (!slot) return res;
+  const amR = [], pmR = [];
+  (slot.ranges || []).forEach(r => {
+    if (r.s < NOON) amR.push({ s: r.s, e: r.e < NOON ? r.e : NOON });
+    if (r.e > NOON) pmR.push({ s: r.s > NOON ? r.s : NOON, e: r.e });
+  });
+  if (slot.am) res.am = { full: true, ranges: [] }; else if (amR.length) res.am = { full: false, ranges: amR };
+  if (slot.pm) res.pm = { full: true, ranges: [] }; else if (pmR.length) res.pm = { full: false, ranges: pmR };
+  return res;
+}
+function rangeText(p) { return p.full ? '整段' : p.ranges.map(r => r.s + '–' + r.e).join('、'); }
+
+/* ---------- API ---------- */
+async function api(action, payload = {}) {
+  if (!API_URL) return mockApi(action, payload);
+  const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, ...payload }) });
+  if (!res.ok) throw new Error('伺服器錯誤（' + res.status + '）');
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error || '發生錯誤');
+  return j.data;
+}
+
+/* 示範模式：用瀏覽器 localStorage 模擬後端 */
+function mockApi(action, p) {
+  const db = store('mtg_mock_db') || { meetings: {}, responses: [] };
+  const rid = () => Math.random().toString(36).slice(2, 12);
+  let out;
+  if (action === 'createMeeting') {
+    if (!p.title) throw new Error('請輸入會議主題');
+    const id = rid(), adminKey = rid() + rid();
+    db.meetings[id] = { id, title: p.title, purpose: p.purpose, startDate: p.startDate, endDate: p.endDate, weekdaysOnly: !!p.weekdaysOnly, adminKey, createdAt: new Date().toISOString() };
+    out = { id, adminKey };
+  } else if (action === 'getMeeting') {
+    const m = db.meetings[p.id]; if (!m) throw new Error('找不到這個會議，請確認連結是否正確');
+    const { adminKey, ...meeting } = m;
+    out = { meeting, isAdmin: p.key === adminKey, responses: db.responses.filter(r => r.meetingId === p.id).map(({ meetingId, ...r }) => r) };
+  } else if (action === 'submit') {
+    if (!db.meetings[p.id]) throw new Error('找不到這個會議');
+    const name = String(p.name || '').trim(); if (!name) throw new Error('請輸入名字');
+    db.responses = db.responses.filter(r => !(r.meetingId === p.id && r.name.toLowerCase() === name.toLowerCase()));
+    db.responses.push({ meetingId: p.id, name, slots: p.slots, note: p.note || '', updatedAt: new Date().toISOString() });
+    out = { saved: true };
+  } else if (action === 'deleteResponse') {
+    const m = db.meetings[p.id]; if (!m || m.adminKey !== p.key) throw new Error('只有會議邀約者可以刪除');
+    db.responses = db.responses.filter(r => !(r.meetingId === p.id && r.name.toLowerCase() === String(p.name).toLowerCase()));
+    out = { deleted: true };
+  }
+  store('mtg_mock_db', db);
+  return new Promise(r => setTimeout(() => r(JSON.parse(JSON.stringify(out))), 150));
+}
+
+function demoBanner() {
+  return API_URL ? '' : `<div class="banner warn"><b>示範模式：</b>尚未設定 <code>API_URL</code>，資料只會存在這台電腦的瀏覽器，其他同仁看不到。完成部署教學的 Google 試算表設定後就能正式使用。</div>`;
+}
+
+/* ============================================================
+   頁面一：建立會議（邀約者）
+   ============================================================ */
+function renderCreate() {
+  const today = fmtD(new Date());
+  const mine = store('mtg_mine') || [];
+  app.innerHTML = `
+    ${demoBanner()}
+    <div class="card">
+      <h1>建立會議時間調查</h1>
+      <p class="muted">填好會議資訊後會產生一個連結，把連結傳給同仁，大家就能填寫自己有空的時間。</p>
+      <form id="createForm">
+        <label class="field"><span>會議主題 *</span><input type="text" name="title" maxlength="100" required placeholder="例如：MES 與 SAP 整合需求討論"></label>
+        <div class="row">
+          <label class="field"><span>開始日期 *</span><input type="date" name="startDate" required value="${today}"></label>
+          <label class="field"><span>結束日期 *</span><input type="date" name="endDate" required value="${fmtD(addDays(new Date(), 9))}"></label>
+        </div>
+        <label class="field" style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="weekdaysOnly" checked> <span style="margin:0;font-weight:400">只開放週一到週五（排除週末）</span></label>
+        <label class="field"><span>開會目的</span><textarea name="purpose" maxlength="2000" placeholder="說明這次會議要討論什麼、預計多久、需要準備什麼…"></textarea></label>
+        <div id="createMsg"></div>
+        <button class="primary" type="submit">建立並產生連結</button>
+      </form>
+    </div>
+    ${mine.length ? `<div class="card"><h2>我建立過的會議</h2><p class="muted small">只記錄在這台電腦的瀏覽器中。</p><ul class="mylist">${mine.map(x => `<li><a href="?m=${encodeURIComponent(x.id)}&k=${encodeURIComponent(x.key)}">${esc(x.title)}</a> <span class="muted small">${esc(x.start)} ~ ${esc(x.end)}</span></li>`).join('')}</ul></div>` : ''}
+  `;
+  document.getElementById('createForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target, btn = f.querySelector('button[type=submit]'), msg = document.getElementById('createMsg');
+    const data = { title: f.title.value.trim(), startDate: f.startDate.value, endDate: f.endDate.value, weekdaysOnly: f.weekdaysOnly.checked, purpose: f.purpose.value.trim() };
+    if (data.endDate < data.startDate) { msg.innerHTML = '<div class="banner err">結束日期不可早於開始日期</div>'; return; }
+    if ((parseD(data.endDate) - parseD(data.startDate)) / 86400000 + 1 > 62) { msg.innerHTML = '<div class="banner err">日期區間最多 62 天</div>'; return; }
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 建立中…'; msg.innerHTML = '';
+    try {
+      const r = await api('createMeeting', data);
+      const list = store('mtg_mine') || [];
+      list.unshift({ id: r.id, key: r.adminKey, title: data.title, start: data.startDate, end: data.endDate });
+      store('mtg_mine', list.slice(0, 30));
+      renderCreated(r, data);
+    } catch (err) {
+      msg.innerHTML = `<div class="banner err">${esc(err.message)}</div>`;
+      btn.disabled = false; btn.textContent = '建立並產生連結';
+    }
+  };
+}
+
+function renderCreated(r, data) {
+  const share = baseUrl() + '?m=' + encodeURIComponent(r.id);
+  const admin = share + '&k=' + encodeURIComponent(r.adminKey);
+  app.innerHTML = `
+    ${demoBanner()}
+    <div class="card">
+      <div class="banner ok">✅ 已建立「${esc(data.title)}」（${esc(data.startDate)} ~ ${esc(data.endDate)}）</div>
+      <h2>① 發給同仁的填寫連結</h2>
+      <div class="linkbox"><input type="text" readonly value="${esc(share)}" id="shareLink"><button class="primary" id="cpShare">複製</button></div>
+      <h2>② 邀約者管理連結（請自己保存，不要外流）</h2>
+      <p class="muted small">用這個連結開啟可以看結果、匯出 CSV、刪除填錯的資料。</p>
+      <div class="linkbox"><input type="text" readonly value="${esc(admin)}"><button id="cpAdmin">複製</button></div>
+      <div class="actions"><a href="${esc(admin)}"><button class="primary">前往管理頁</button></a><a href="./"><button>再建立一個</button></a></div>
+    </div>`;
+  document.getElementById('cpShare').onclick = () => copy(share);
+  document.getElementById('cpAdmin').onclick = () => copy(admin);
+}
+
+/* ============================================================
+   頁面二：會議頁（填寫 / 結果）
+   ============================================================ */
+async function loadMeeting(id, key) {
+  try {
+    const r = await api('getMeeting', { id, key });
+    state.meeting = r.meeting; state.responses = r.responses; state.isAdmin = r.isAdmin; state.key = key;
+    if (r.isAdmin && state.tab === 'fill' && !state._init) state.tab = 'result';
+    state._init = true;
+    document.title = r.meeting.title + '｜會議時間調查';
+    renderMeeting();
+  } catch (err) {
+    app.innerHTML = `<div class="card"><div class="banner err">${esc(err.message)}</div><a href="./"><button>回首頁</button></a></div>`;
+  }
+}
+
+function renderMeeting() {
+  const m = state.meeting;
+  const share = baseUrl() + '?m=' + encodeURIComponent(m.id);
+  app.innerHTML = `
+    ${demoBanner()}
+    <div class="card">
+      <h1>${esc(m.title)}</h1>
+      <div class="muted">日期區間：${esc(m.startDate)} ~ ${esc(m.endDate)}${m.weekdaysOnly ? '（僅平日）' : ''}　·　已填寫 ${state.responses.length} 人</div>
+      ${m.purpose ? `<div class="purpose"><b>開會目的：</b>\n${esc(m.purpose)}</div>` : ''}
+      ${state.isAdmin ? `<div style="margin-top:12px"><span class="small muted">你是邀約者。填寫連結：</span><div class="linkbox"><input type="text" readonly value="${esc(share)}"><button id="cpShare">複製</button></div></div>` : ''}
+    </div>
+    <div class="tabs">
+      <button data-tab="fill" class="${state.tab === 'fill' ? 'active' : ''}">✏️ 填寫我的時間</button>
+      <button data-tab="result" class="${state.tab === 'result' ? 'active' : ''}">📊 查看結果（${state.responses.length}）</button>
+    </div>
+    <div id="tabBody"></div>`;
+  app.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; renderMeeting(); });
+  const cp = document.getElementById('cpShare'); if (cp) cp.onclick = () => copy(share);
+  if (state.tab === 'fill') renderFill(); else renderResult();
+}
+
+/* ---------- 填寫 ---------- */
+function myNameKey() { return 'mtg_name_' + state.meeting.id; }
+
+function renderFill() {
+  const m = state.meeting;
+  const body = document.getElementById('tabBody');
+  const savedName = state.fillName ?? store(myNameKey()) ?? '';
+  body.innerHTML = `
+    <div class="card">
+      <label class="field" style="max-width:360px"><span>你的名字 *</span><input type="text" id="nameInput" maxlength="30" placeholder="例如：王小明" value="${esc(savedName)}"></label>
+      <div id="nameMsg" class="small"></div>
+      <div class="legend">
+        <span>在你有空的日期下方勾選：</span>
+        <span><span class="dot" style="background:var(--am)"></span>上午（12:00 前）</span>
+        <span><span class="dot" style="background:var(--pm)"></span>下午（12:00 後）</span>
+        <span>或按「＋ 指定時段」輸入精確時間，系統會自動歸到上午/下午</span>
+      </div>
+      <div class="actions" style="margin:0 0 12px">
+        <button id="allAm" class="small">所有日期勾上午</button>
+        <button id="allPm" class="small">所有日期勾下午</button>
+        <button id="clearAll" class="small">全部清除</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <label class="field" style="margin-top:14px"><span>備註（選填）</span><input type="text" id="noteInput" maxlength="300" placeholder="例如：11/5 上午可以，但 10:30 前要離開" value="${esc(state.fillNote || '')}"></label>
+      <div class="sticky-actions actions">
+        <button class="primary" id="submitBtn">送出我的時間</button>
+        <span id="submitMsg" class="small"></span>
+      </div>
+    </div>`;
+  const nameInput = document.getElementById('nameInput');
+  const tryLoad = () => {
+    const n = nameInput.value.trim(); state.fillName = nameInput.value;
+    const ex = state.responses.find(r => r.name.toLowerCase() === n.toLowerCase());
+    const msg = document.getElementById('nameMsg');
+    if (n && ex && state._loadedFor !== n.toLowerCase()) {
+      state.fill = JSON.parse(JSON.stringify(ex.slots || {})); state.fillNote = ex.note || ''; state._loadedFor = n.toLowerCase();
+      document.getElementById('noteInput').value = state.fillNote;
+      drawFillCal();
+      msg.innerHTML = '<span style="color:var(--ok)">已載入「' + esc(ex.name) + '」之前填寫的資料，修改後再按送出即可更新。</span>';
+    } else if (!ex) { msg.innerHTML = ''; state._loadedFor = null; }
+  };
+  nameInput.addEventListener('change', tryLoad);
+  document.getElementById('noteInput').addEventListener('input', e => state.fillNote = e.target.value);
+  document.getElementById('allAm').onclick = () => { allowedDates(m).forEach(d => slot(d).am = true); drawFillCal(); };
+  document.getElementById('allPm').onclick = () => { allowedDates(m).forEach(d => slot(d).pm = true); drawFillCal(); };
+  document.getElementById('clearAll').onclick = () => { state.fill = {}; drawFillCal(); };
+  document.getElementById('submitBtn').onclick = submitFill;
+  drawFillCal();
+  if (savedName && !state._loadedFor) tryLoad();
+}
+
+function slot(d) { return state.fill[d] || (state.fill[d] = { am: false, pm: false, ranges: [] }); }
+
+function calendarCells(m) {
+  const start = parseD(m.startDate), end = parseD(m.endDate);
+  const first = addDays(start, -start.getDay()), last = addDays(end, 6 - end.getDay());
+  const cells = [];
+  for (let d = first; d <= last; d = addDays(d, 1)) cells.push(fmtD(d));
+  return cells;
+}
+function weekHeader() { return WEEKDAYS.map(w => `<div class="wk">${w}</div>`).join(''); }
+function dayHead(d) { const x = parseD(d); return `<div class="dhead"><span>${x.getMonth() + 1}/${x.getDate()}</span><span class="wd">週${WEEKDAYS[x.getDay()]}</span></div>`; }
+
+function drawFillCal() {
+  const m = state.meeting, cal = document.getElementById('cal');
+  const opt = v => TIME_OPTIONS.map(t => `<option ${t === v ? 'selected' : ''}>${t}</option>`).join('');
+  cal.innerHTML = weekHeader() + calendarCells(m).map(d => {
+    if (!isAllowed(d, m)) return `<div class="day off">${dayHead(d)}</div>`;
+    const s = state.fill[d] || { am: false, pm: false, ranges: [] };
+    const ranges = (s.ranges || []).map((r, i) => {
+      const bad = r.e <= r.s;
+      const tags = bad ? '<span class="tag" style="color:var(--danger)">時間錯誤</span>' :
+        (r.s < NOON ? '<span class="tag am">上午</span>' : '') + (r.e > NOON ? '<span class="tag pm">下午</span>' : '');
+      return `<div class="range ${bad ? 'bad' : ''}"><select data-d="${d}" data-i="${i}" data-k="s">${opt(r.s)}</select>–<select data-d="${d}" data-i="${i}" data-k="e">${opt(r.e)}</select><button class="x" data-d="${d}" data-i="${i}" title="移除">✕</button>${tags}</div>`;
+    }).join('');
+    return `<div class="day">${dayHead(d)}
+      <div class="toggles">
+        <label class="toggle am ${s.am ? 'on' : ''}"><input type="checkbox" data-d="${d}" data-p="am" ${s.am ? 'checked' : ''}>上午整段</label>
+        <label class="toggle pm ${s.pm ? 'on' : ''}" style="margin-top:4px"><input type="checkbox" data-d="${d}" data-p="pm" ${s.pm ? 'checked' : ''}>下午整段</label>
+      </div>
+      ${ranges}
+      <button class="addrange" data-add="${d}">＋ 指定時段</button>
+    </div>`;
+  }).join('');
+  cal.querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = () => { slot(c.dataset.d)[c.dataset.p] = c.checked; drawFillCal(); });
+  cal.querySelectorAll('select').forEach(sel => sel.onchange = () => { slot(sel.dataset.d).ranges[+sel.dataset.i][sel.dataset.k] = sel.value; drawFillCal(); });
+  cal.querySelectorAll('.x').forEach(b => b.onclick = () => { slot(b.dataset.d).ranges.splice(+b.dataset.i, 1); drawFillCal(); });
+  cal.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
+    const rs = slot(b.dataset.add).ranges; const last = rs[rs.length - 1];
+    rs.push(last ? { s: '14:00', e: '15:00' } : { s: '09:00', e: '10:00' }); drawFillCal();
+  });
+}
+
+async function submitFill() {
+  const m = state.meeting;
+  const name = document.getElementById('nameInput').value.trim();
+  const msg = document.getElementById('submitMsg'), btn = document.getElementById('submitBtn');
+  if (!name) { msg.innerHTML = '<span style="color:var(--danger)">請先輸入名字</span>'; document.getElementById('nameInput').focus(); return; }
+  const slots = {}; let bad = false;
+  Object.entries(state.fill).forEach(([d, s]) => {
+    if (!isAllowed(d, m)) return;
+    if ((s.ranges || []).some(r => r.e <= r.s)) bad = true;
+    const ranges = (s.ranges || []).filter(r => r.e > r.s);
+    if (s.am || s.pm || ranges.length) slots[d] = { am: !!s.am, pm: !!s.pm, ranges };
+  });
+  if (bad) { msg.innerHTML = '<span style="color:var(--danger)">有時段的結束時間早於開始時間，請修正（紅框處）</span>'; return; }
+  if (!Object.keys(slots).length && !confirm('你沒有勾選任何時間，確定要送出（代表這段期間都不方便）嗎？')) return;
+  const existing = state.responses.find(r => r.name.toLowerCase() === name.toLowerCase());
+  if (existing && state._loadedFor !== name.toLowerCase() && !confirm('「' + existing.name + '」已經填寫過，送出會覆蓋之前的資料，確定嗎？')) return;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 送出中…'; msg.textContent = '';
+  try {
+    await api('submit', { id: m.id, name, slots, note: document.getElementById('noteInput').value.trim() });
+    store(myNameKey(), name);
+    state._loadedFor = name.toLowerCase();
+    const r = await api('getMeeting', { id: m.id, key: state.key });
+    state.responses = r.responses;
+    state.tab = 'result'; renderMeeting();
+    toast('已送出，謝謝你！');
+  } catch (err) {
+    msg.innerHTML = `<span style="color:var(--danger)">${esc(err.message)}</span>`;
+    btn.disabled = false; btn.textContent = '送出我的時間';
+  }
+}
+
+/* ---------- 結果 ---------- */
+function aggregate() {
+  const m = state.meeting, out = {};
+  allowedDates(m).forEach(d => out[d] = { am: [], pm: [] });
+  state.responses.forEach(r => {
+    Object.entries(r.slots || {}).forEach(([d, s]) => {
+      if (!out[d]) return;
+      const p = splitPeriods(s);
+      if (p.am) out[d].am.push({ name: r.name, ...p.am });
+      if (p.pm) out[d].pm.push({ name: r.name, ...p.pm });
+    });
+  });
+  return out;
+}
+
+function heat(n, total, base) {
+  if (!n || !total) return '#fafafa';
+  const a = 0.12 + 0.55 * (n / total);
+  return base === 'am' ? `rgba(217,119,6,${a.toFixed(2)})` : `rgba(79,70,229,${a.toFixed(2)})`;
+}
+
+function renderResult() {
+  const m = state.meeting, body = document.getElementById('tabBody');
+  const total = state.responses.length;
+  if (!total) { body.innerHTML = '<div class="card"><p class="muted">目前還沒有人填寫。</p></div>'; return; }
+  const agg = aggregate();
+
+  const slotsList = [];
+  Object.entries(agg).forEach(([d, v]) => ['am', 'pm'].forEach(p => {
+    if (v[p].length) slotsList.push({ d, p, n: v[p].length, full: v[p].filter(x => x.full).length, list: v[p] });
+  }));
+  slotsList.sort((a, b) => b.n - a.n || b.full - a.full || (a.d + a.p).localeCompare(b.d + b.p));
+  const best = slotsList.slice(0, 5);
+
+  const periodBox = (d, p) => {
+    const L = agg[d][p];
+    return `<div class="res-period ${p}" style="background:${heat(L.length, total, p)}">
+      <div class="ph"><span>${p === 'am' ? '上午' : '下午'}</span><span>${L.length}/${total}</span></div>
+      ${L.length ? `<ul>${L.map(x => `<li>${esc(x.name)} <span class="t">${x.full ? '整段' : esc(rangeText(x))}</span></li>`).join('')}</ul>` : ''}
+    </div>`;
+  };
+
+  body.innerHTML = `
+    <div class="card">
+      <h2>🏆 最多人可以的時段</h2>
+      <ol class="best">${best.map(b => `<li><span class="when">${labelD(b.d)} ${b.p === 'am' ? '上午' : '下午'}</span><span class="cnt">${b.n}/${total} 人</span><span class="muted small">${b.list.map(x => esc(x.name) + (x.full ? '' : '（' + esc(rangeText(x)) + '）')).join('、')}</span></li>`).join('')}</ol>
+    </div>
+    <div class="card">
+      <div class="actions" style="margin:0 0 12px;justify-content:space-between">
+        <div class="tabs" style="margin:0;border:none">
+          <button data-v="cal" class="${state.resultView === 'cal' ? 'active' : ''}">日曆檢視</button>
+          <button data-v="table" class="${state.resultView === 'table' ? 'active' : ''}">總覽表</button>
+        </div>
+        <div class="actions" style="margin:0"><button id="refresh">🔄 重新整理</button>${state.isAdmin ? '<button id="csv">⬇️ 匯出 CSV</button>' : ''}</div>
+      </div>
+      <div class="legend"><span><span class="dot" style="background:var(--am)"></span>上午</span><span><span class="dot" style="background:var(--pm)"></span>下午</span><span>顏色越深代表越多人可以；「整段」= 整個上午/下午都可以</span></div>
+      <div id="resView"></div>
+    </div>
+    <div class="card">
+      <h2>已填寫的同仁（${total}）</h2>
+      <div class="people">${state.responses.map(r => `<span class="person" title="${esc(r.note || '')}">${esc(r.name)}${r.note ? ' 📝' : ''}${state.isAdmin ? `<button class="danger" data-del="${esc(r.name)}">刪除</button>` : ''}</span>`).join('')}</div>
+      ${state.responses.some(r => r.note) ? `<div style="margin-top:12px" class="small">${state.responses.filter(r => r.note).map(r => `<div><b>${esc(r.name)}：</b>${esc(r.note)}</div>`).join('')}</div>` : ''}
+    </div>`;
+
+  const view = document.getElementById('resView');
+  if (state.resultView === 'cal') {
+    view.innerHTML = `<div class="cal">${weekHeader()}${calendarCells(m).map(d => !isAllowed(d, m)
+      ? `<div class="day off">${dayHead(d)}</div>`
+      : `<div class="day">${dayHead(d)}${periodBox(d, 'am')}${periodBox(d, 'pm')}</div>`).join('')}</div>`;
+  } else {
+    const dates = allowedDates(m);
+    const cell = (r, d, p) => { const x = splitPeriods((r.slots || {})[d])[p]; return !x ? '<td></td>' : x.full ? '<td class="y">✓</td>' : `<td class="p">${esc(rangeText(x))}</td>`; };
+    view.innerHTML = `<div class="tablewrap"><table class="matrix">
+      <tr><th class="name" rowspan="2">姓名</th>${dates.map(d => `<th colspan="2">${labelD(d)}</th>`).join('')}</tr>
+      <tr>${dates.map(() => '<th>上午</th><th>下午</th>').join('')}</tr>
+      ${state.responses.map(r => `<tr><td class="name">${esc(r.name)}</td>${dates.map(d => cell(r, d, 'am') + cell(r, d, 'pm')).join('')}</tr>`).join('')}
+      <tr><td class="name"><b>合計</b></td>${dates.map(d => `<td><b>${agg[d].am.length}</b></td><td><b>${agg[d].pm.length}</b></td>`).join('')}</tr>
+    </table></div><p class="muted small">✓ = 整段可以；顯示時間 = 只有該時段可以</p>`;
+  }
+
+  body.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { state.resultView = b.dataset.v; renderResult(); });
+  document.getElementById('refresh').onclick = () => loadMeeting(m.id, state.key);
+  const csvBtn = document.getElementById('csv'); if (csvBtn) csvBtn.onclick = exportCsv;
+  body.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if (!confirm('確定刪除「' + b.dataset.del + '」的填寫資料？')) return;
+    try { await api('deleteResponse', { id: m.id, key: state.key, name: b.dataset.del }); toast('已刪除'); loadMeeting(m.id, state.key); }
+    catch (err) { alert(err.message); }
+  });
+}
+
+function exportCsv() {
+  const m = state.meeting, dates = allowedDates(m);
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['姓名', ...dates.flatMap(d => [d + ' 上午', d + ' 下午']), '備註', '更新時間']];
+  state.responses.forEach(r => rows.push([r.name, ...dates.flatMap(d => { const p = splitPeriods((r.slots || {})[d]); return [p.am ? rangeText(p.am) : '', p.pm ? rangeText(p.pm) : '']; }), r.note || '', r.updatedAt || '']));
+  const blob = new Blob(['﻿' + rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = m.title + '_時間調查.csv'; a.click();
+}
+
+/* ---------- 路由 ---------- */
+(function init() {
+  const p = new URLSearchParams(location.search);
+  const id = p.get('m');
+  if (id) loadMeeting(id, p.get('k') || ''); else renderCreate();
+})();
+</script>
+</body>
+</html>
